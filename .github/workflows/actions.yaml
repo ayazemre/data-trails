@@ -23,6 +23,7 @@ jobs:
     secrets: inherit
 
   publish:
+    if: github.ref == 'refs/heads/main'
     needs: [integrity, test]
     uses: ./.github/workflows/publish.yaml
     with:
