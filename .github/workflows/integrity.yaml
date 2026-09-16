@@ -21,18 +21,12 @@ jobs:
         run: npm ci
       - name: Check CHANGELOG and version sync
         run: |
-          set -e
-          PACKAGE_VERSION=$(awk -F\" '/"version"/{print $4; exit}' package.json)
-          echo "Package version: $PACKAGE_VERSION"
-          if ! grep -q "## \[$PACKAGE_VERSION\]" CHANGELOG.md; then
-            echo "Error: CHANGELOG.md is missing entry for version [$PACKAGE_VERSION]"
-            echo "Add '## [$PACKAGE_VERSION] - YYYY-MM-DD' to CHANGELOG.md"
-            exit 1
-          fi
-          echo "✓ CHANGELOG.md has entry for $PACKAGE_VERSION"
+          . ./scripts/common.sh
+          check_changelog_version
       - name: Export current package version
         id: export_version
         run: |
-          CURRENT_VERSION=$(awk -F\" '/"version"/{print $4; exit}' package.json)
+          . ./scripts/common.sh
+          CURRENT_VERSION=$(get_package_version)
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "Exported current_version=$CURRENT_VERSION"

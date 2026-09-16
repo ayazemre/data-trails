@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.2] - 2026-09-16
+
+- Rename error normalizer to `toErrorResult` with explicit return type and antipattern message for non error throws.
+- Normalize async thenables with `Promise.resolve` and reorder `Result` exports to the top.
+- Remove `as any` from `unwrap` paths.
+
 ## [0.8.1] - 2026-09-07
 
 - Remove implementation details from `Trail` documentation and add workflow rail explanation for success and error encapsulation.

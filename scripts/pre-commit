@@ -1,6 +1,0 @@
-#!/bin/sh
-
-set -e
-echo "Running pre-commit hook..."
-npm run lint -- --fix && npm run format
-git add -u
