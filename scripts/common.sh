@@ -40,9 +40,9 @@ run_npm_tests() {
     esac
   done
   if [ -z "$FILTER_VALUE" ]; then
-    dotenvx run -- node --test-global-setup=./tests/setup.ts --test tests/index.test.ts
+    npm run test -- tests/index.test.ts
   else
-    dotenvx run -- node --test-global-setup=./tests/setup.ts --test **/"$FILTER_VALUE".test.ts
+    npm run test -- **/"$FILTER_VALUE".test.ts
   fi
 }
 

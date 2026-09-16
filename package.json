@@ -38,8 +38,7 @@
     "build": "rolldown -c",
     "lint": "oxlint",
     "format": "oxfmt",
-    "test": "dotenvx run -- node --test-global-setup=./tests/setup.ts --test",
-    "test:all": "npm run test -- tests/index.test.ts"
+    "test": "dotenvx run -- node --test-global-setup=./tests/setup.ts --test"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^2.23.0",
