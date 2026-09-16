@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.3] - 2026-09-16
+
+- Trim `README.md` implementation details and keep behavior focused usage and API sections.
+
 ## [0.8.2] - 2026-09-16
 
 - Rename error normalizer to `toErrorResult` with explicit return type and antipattern message for non error throws.

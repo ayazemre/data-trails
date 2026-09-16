@@ -22,9 +22,7 @@ The `Result<T, E = Error>` type is a wrapper that represents one of two outcomes
 - `T`: The operation succeeded, containing a value of type `T`.
 - `E`: The operation failed, containing an error.
 
-This pattern prevents your application from crashing due to unhandled exceptions and makes error flow explicit.
-
-The implementation uses `wrap` for the `Result` shape (`isError`, `unwrap`, `unwrapError`, `mapError`) and `normalizeError` to wrap non-`Error` throws via `new Error("", { cause: error })`.
+This pattern prevents your application from crashing due to unhandled exceptions and makes error flow explicit. Non `Error` throws become error results with a fixed antipattern message and the original value preserved in `cause`.
 
 ### `Result.wrap`
 
@@ -41,16 +39,13 @@ Signature: `wrap<T>(value: T): T extends Error ? Result<never, T> : Result<T, ne
 
 ### `Result.from`
 
-Unified sync and async wrapper with overloads and `then` detection. Do not use `Result.sync`/`Result.async`, they are replaced by `Result.from`.
+Wraps sync and async functions into a `Result`. Sync throws and async rejections both become error results.
 
 ```typescript
 function from<T>(fn: () => Promise<T>): Promise<Result<T, Error>>;
 function from<T>(fn: () => T): Result<T, Error>;
 function from<T>(fn: () => T | Promise<T>): Result<T, Error> | Promise<Result<T, Error>>;
 ```
-
-- If `fn()` returns a `Promise` (`value?.then` is function), it returns `Promise<Result>` via `.then(wrap, normalizeError)`.
-- Otherwise it returns `Result` via `wrap` or `normalizeError` on throw.
 
 Example sync:
 
@@ -89,7 +84,7 @@ async function getUser(id: string) {
 
 ### `Result.void`
 
-`Result.void(): Result<void, Error>` creates a successful void result via `wrap(undefined as void)`. `Trail` uses `Result.wrap(current)` for empty run, not `void` directly.
+`Result.void(): Result<void, Error>` creates a successful void result.
 
 ### Result instance
 
@@ -102,7 +97,7 @@ export type Result<T, E = Error> = {
 };
 ```
 
-`isError` is a type guard via `Error.isError(value)`. `unwrap`/`unwrapError` throw with helper messages if called on wrong variant. `mapError` throws if called on success.
+Use `isError` to narrow, then `unwrap` or `unwrapError`. `mapError` transforms the error side and throws if called on success.
 
 ## Core Concept: `Trail`
 
@@ -164,9 +159,9 @@ All `chain` functions must be `async` or return `Promise`. Sync ` (value) => val
 ### `Trail<T>`
 
 - `Trail.from<T>(initialData: T): Trail<T>`
-- `.chain<U>(fn: (value: T) => Promise<U>): Trail<U>` — append async step, `T` is previous unwrapped value, `U` is new `Trail<U>`.
-- `.run(): Promise<Result<T, Error>>` — always async, `await` each `Result.from(() => step(current))`, short-circuit on `isError`.
-- `.steps: ReadonlyArray<(value: T) => Promise<unknown>>` — stored erased via `fn as (value: unknown) => Promise<unknown>` on chain.
+- `.chain<U>(fn: (value: T) => Promise<U>): Trail<U>` — append async step.
+- `.run(): Promise<Result<T, Error>>` — run all steps in order, short-circuit on first error.
+- `.steps: ReadonlyArray<(value: T) => Promise<unknown>>` — appended steps in order.
 
 ## Contributing
 
