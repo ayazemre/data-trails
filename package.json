@@ -1,6 +1,6 @@
 {
   "name": "data-trails",
-  "version": "0.7.0",
+  "version": "0.8.3",
   "description": "Railway oriented programming building blocks.",
   "keywords": [
     "data trail",
@@ -19,6 +19,9 @@
     "type": "git",
     "url": "git+https://github.com/ayazemre/data-trails"
   },
+  "bin": {
+    "data-trails": "./dist/cli.js"
+  },
   "files": [
     "dist"
   ],
@@ -32,18 +35,19 @@
     ".": "./dist/index.js"
   },
   "scripts": {
-    "test": "node --test",
     "build": "rolldown -c",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "test": "dotenvx run -- node --test-global-setup=./tests/setup.ts --test"
   },
   "devDependencies": {
-    "@types/node": "^24.12.4",
-    "oxfmt": "^0.49.0",
-    "oxlint": "^1.64.0",
-    "rolldown": "^1.0.1",
-    "rolldown-plugin-dts": "^0.25.1",
-    "tinyglobby": "^0.2.16",
-    "typescript": "^6.0.3"
+    "@dotenvx/dotenvx": "^2.23.0",
+    "@types/node": "^26.2.0",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.78.0",
+    "rolldown": "^1.2.4",
+    "rolldown-plugin-dts": "^0.28.2",
+    "tinyglobby": "^0.2.17",
+    "typescript": "^7.0.2"
   }
 }

@@ -1,12 +1,20 @@
 import { defineConfig } from "oxlint";
 
 export default defineConfig({
-  ignorePatterns: ["dist", "node_modules"],
+  ignorePatterns: ["dist", "node_modules", "build"],
   overrides: [
     {
-      files: ["*.config.ts"],
+      excludeFiles: ["*config*"],
+      files: ["*.ts"],
       rules: {
-        "import/no-default-export": "off",
+        "import/no-default-export": "error",
+      },
+    },
+    {
+      excludeFiles: ["*svelte*", "*config*"],
+      files: ["*.ts"],
+      rules: {
+        "unicorn/filename-case": ["error", { cases: { camelCase: true } }],
       },
     },
   ],
@@ -14,11 +22,10 @@ export default defineConfig({
   rules: {
     "@typescript-eslint/consistent-type-imports": ["error", { fixStyle: "separate-type-imports", prefer: "type-imports" }],
     "@typescript-eslint/no-import-type-side-effects": "error",
-    "import/no-default-export": "error",
+    "import/no-duplicates": "error",
     "import/no-named-as-default": "error",
     "max-statements": ["error", 50],
     "no-unused-vars": "error",
     "sort-keys": "error",
-    "unicorn/filename-case": ["error", { cases: { camelCase: true } }],
   },
 });

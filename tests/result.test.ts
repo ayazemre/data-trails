@@ -1,7 +1,7 @@
-import { Result } from "#src/result.ts";
-
 import { equal, throws } from "assert";
 import { describe, test } from "node:test";
+
+import { Result } from "#src/result.ts";
 
 describe("Result", () => {
   function testFunctionSync(params: { throws?: boolean; returns?: string | null | undefined }) {
@@ -33,7 +33,7 @@ describe("Result", () => {
   });
 
   test("Sync Success", async () => {
-    const result = Result.sync(() => testFunctionSync({ returns: "Data" }));
+    const result = Result.from(() => testFunctionSync({ returns: "Data" }));
 
     equal(result.unwrap(), "Data");
     throws(() => result.unwrapError());
@@ -41,9 +41,9 @@ describe("Result", () => {
   });
 
   test("Sync Void Success", async () => {
-    const result = Result.sync(() => {});
+    const result = Result.from(() => {});
 
-    equal(result.unwrap(), null);
+    equal(result.unwrap(), undefined);
     throws(() => result.unwrapError());
     equal(result.isError(), false);
   });
@@ -51,13 +51,13 @@ describe("Result", () => {
   test("Void Result", async () => {
     const result = Result.void();
 
-    equal(result.unwrap(), null);
+    equal(result.unwrap(), undefined);
     throws(() => result.unwrapError());
     equal(result.isError(), false);
   });
 
   test("Sync Throw Capture", async () => {
-    const result = Result.sync(() => testFunctionSync({ throws: true }));
+    const result = Result.from(() => testFunctionSync({ throws: true }));
 
     throws(() => result.unwrap());
     equal(result.unwrapError().message, "Test Error");
@@ -65,7 +65,7 @@ describe("Result", () => {
   });
 
   test("Sync Map Error", async () => {
-    const result = Result.sync(() => testFunctionSync({ throws: true }));
+    const result = Result.from(() => testFunctionSync({ throws: true }));
 
     throws(() => result.unwrap());
     equal(result.unwrapError().message, "Test Error");
@@ -82,7 +82,7 @@ describe("Result", () => {
   // Async Test
 
   test("Async Success", async () => {
-    const result = await Result.async(() => testFunctionAsync({ returns: "Data" }));
+    const result = await Result.from(() => testFunctionAsync({ returns: "Data" }));
 
     equal(result.unwrap(), "Data");
     throws(() => result.unwrapError());
@@ -90,7 +90,7 @@ describe("Result", () => {
   });
 
   test("Async Throw Capture", async () => {
-    const result = await Result.async(() => testFunctionAsync({ throws: true }));
+    const result = await Result.from(() => testFunctionAsync({ throws: true }));
 
     throws(() => result.unwrap());
     equal(result.unwrapError().message, "Test Error");
@@ -98,7 +98,7 @@ describe("Result", () => {
   });
 
   test("Async Map Error", async () => {
-    const result = await Result.async(() => testFunctionAsync({ throws: true }));
+    const result = await Result.from(() => testFunctionAsync({ throws: true }));
 
     throws(() => result.unwrap());
     equal(result.unwrapError().message, "Test Error");
@@ -111,7 +111,7 @@ describe("Result", () => {
   });
 
   test("Sync Map Error on Success", async () => {
-    const result = Result.sync(() => "Success");
+    const result = Result.from(() => "Success");
     throws(() => result.mapError((e) => e), {
       message: "Wrapped result is not an error. Use isError helper.",
     });
@@ -129,7 +129,7 @@ describe("Result", () => {
   });
 
   test("Non-Error Capture", async () => {
-    const result = Result.sync(() => {
+    const result = await Result.from(() => {
       throw "Non-Error Value";
     });
 
@@ -139,7 +139,7 @@ describe("Result", () => {
 
   test("Type Guard", async () => {
     function typeGuardTest(): Result<number, Error> {
-      const result = Result.sync((): string => {
+      const result = Result.from((): string => {
         throw new Error("Test Error");
       });
 

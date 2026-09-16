@@ -2,10 +2,10 @@
 
 [![npm version](https://badge.fury.io/js/data-trails.svg)](https://badge.fury.io/js/data-trails)
 
-Data Trails is a lightweight TypeScript library that provides a robust and elegant way to handle operations that might fail, such as network requests, file system operations, or any function that can throw an error. It's built around two core concepts: `Result` and `DataTrail`.
+Data Trails is a lightweight TypeScript library that provides a robust and elegant way to handle operations that might fail, such as network requests, file system operations, or any function that can throw an error. It's built around two core concepts: `Result` and `Trail`.
 
 - **`Result`**: A wrapper for functions that might fail. It prevents exceptions from being thrown, catches them, and forces you to handle errors explicitly at the point of failure.
-- **`DataTrail`**: A utility for chaining multiple fallible operations together in a clean, readable, and safe way, inspired by railway-oriented programming.
+- **`Trail`**: An async-only utility for chaining multiple fallible async operations together, inspired by railway-oriented programming. Initial data is provided first, then `chain` steps are appended.
 
 This approach helps you write more predictable and maintainable code by making error handling a first-class citizen.
 
@@ -17,154 +17,151 @@ npm install data-trails
 
 ## Core Concept: `Result`
 
-The `Result<T, Error>` type is a wrapper that represents one of two outcomes:
+The `Result<T, E = Error>` type is a wrapper that represents one of two outcomes:
 
 - `T`: The operation succeeded, containing a value of type `T`.
-- `Error`: The operation failed, containing an error.
+- `E`: The operation failed, containing an error.
 
-This pattern prevents your application from crashing due to unhandled exceptions and makes error flow explicit.
+This pattern prevents your application from crashing due to unhandled exceptions and makes error flow explicit. Non `Error` throws become error results with a fixed antipattern message and the original value preserved in `cause`.
 
 ### `Result.wrap`
 
-Automatically wraps any value into a `Result`. If the value is an `Error` instance, it creates an error result. Otherwise, it creates a success result. This is useful for wrapping existing variables or return values.
+Automatically wraps any value into a `Result`. If the value is an `Error` instance, it creates an error result. Otherwise, it creates a success result.
 
 ```typescript
 import { Result } from "data-trails";
 
-const success = Result.wrap("Hello"); // Result<string, Error>
+const success = Result.wrap("Hello"); // Result<string, never>
 const failure = Result.wrap(new Error("Fail")); // Result<never, Error>
 ```
 
-### `Result.sync`
+Signature: `wrap<T>(value: T): T extends Error ? Result<never, T> : Result<T, never>`
 
-Use `Result.sync` to wrap synchronous functions that might throw an error.
+### `Result.from`
 
-Let's say you have a function that parses JSON and can throw an error:
+Wraps sync and async functions into a `Result`. Sync throws and async rejections both become error results.
 
 ```typescript
+function from<T>(fn: () => Promise<T>): Promise<Result<T, Error>>;
+function from<T>(fn: () => T): Result<T, Error>;
+function from<T>(fn: () => T | Promise<T>): Result<T, Error> | Promise<Result<T, Error>>;
+```
+
+Example sync:
+
+```typescript
+import { Result } from "data-trails";
+
 function parseJSON(jsonString: string): { message: string } {
-  if (!jsonString) {
-    throw new Error("Input string cannot be empty!");
-  }
+  if (!jsonString) throw new Error("Input string cannot be empty!");
   return JSON.parse(jsonString);
 }
+
+const successResult = Result.from(() => parseJSON('{ "message": "Hello World" }'));
+if (!successResult.isError()) console.log(successResult.unwrap().message);
+
+const errorResult = Result.from(() => parseJSON("invalid-json"));
+if (errorResult.isError()) console.error(errorResult.unwrapError().message);
 ```
 
-Instead of a `try...catch` block, you can wrap it with `Result.sync`:
+Example async:
 
 ```typescript
 import { Result } from "data-trails";
 
-// --- Success Case ---
-const successResult = Result.sync(() => parseJSON('{ "message": "Hello World" }'));
-
-if (!successResult.isError()) {
-  // Safely access the value
-  console.log(successResult.unwrap().message); // "Hello World"
-}
-
-// --- Failure Case ---
-const errorResult = Result.sync(() => parseJSON("invalid-json"));
-
-if (errorResult.isError()) {
-  // Handle the error explicitly
-  console.error(errorResult.unwrapError().message); // "Unexpected token i in JSON at position 0"
-}
-```
-
-The `Result` object exposes `isError()`, `unwrap()` and `unwrapError()` rather than `isOk`/`isErr` or direct `value`/`error` properties.
-
-### `Result.async`
-
-Use `Result.async` to wrap asynchronous functions. It takes a factory function that returns a `Promise` and returns a `Promise<Result<T, Error>>`.
-
-Consider a function that fetches data from an API:
-
-```typescript
 async function fetchUserData(userId: string): Promise<{ id: string; name: string }> {
   const response = await fetch(`https://api.example.com/users/${userId}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch user: ${response.statusText}`);
-  }
+  if (!response.ok) throw new Error(`Failed to fetch user: ${response.statusText}`);
   return response.json();
 }
-```
-
-Wrapping it with `Result.async`:
-
-```typescript
-import { Result } from "data-trails";
 
 async function getUser(id: string) {
-  // Note: We pass a factory function () => fetchUserData(id)
-  const userResult = await Result.async(() => fetchUserData(id));
-
-  if (!userResult.isError()) {
-    console.log(`Welcome, ${userResult.unwrap().name}!`);
-  } else {
-    console.error(`Error fetching user: ${userResult.unwrapError().message}`);
-  }
+  const userResult = await Result.from(() => fetchUserData(id));
+  if (!userResult.isError()) console.log(`Welcome, ${userResult.unwrap().name}!`);
+  else console.error(`Error: ${userResult.unwrapError().message}`);
 }
 ```
 
-## Core Concept: `DataTrail`
+### `Result.void`
 
-The `DataTrail` utility allows you to chain multiple operations. If any step fails (either by returning an error Result or throwing an exception), the trail short-circuits and returns the first error; subsequent steps are not executed.
+`Result.void(): Result<void, Error>` creates a successful void result.
 
-### `DataTrail` Usage
-
-Imagine a workflow where you need to:
-
-1.  Fetch a user from an API.
-2.  Validate the user's data.
-3.  Save the user to a database.
-
-Using `DataTrail`, you can write this as a clean "Happy Path" chain:
+### Result instance
 
 ```typescript
-import { Result, DataTrail } from "data-trails";
+export type Result<T, E = Error> = {
+  unwrap(): T;
+  unwrapError(): E;
+  mapError(fn: (error: E) => E): Result<T, E>;
+  isError(): this is Result<never, E>;
+};
+```
 
-// Assume these functions can throw or return raw values
+Use `isError` to narrow, then `unwrap` or `unwrapError`. `mapError` transforms the error side and throws if called on success.
+
+## Core Concept: `Trail`
+
+`Trail` is async-only. Provide initial data first, then chain async steps. If any step throws or rejects, the trail short-circuits and returns the first error.
+
+```typescript
+export type Trail<T> = {
+  readonly steps: ReadonlyArray<(value: T) => Promise<unknown>>;
+  chain: <U>(fn: (value: T) => Promise<U>) => Trail<U>;
+  run(): Promise<Result<T, Error>>;
+};
+```
+
+`Trail` encapsulates the success and error rails of a workflow in one go. You build the happy path with `Trail.from(initialData)` and `chain` steps, and `run` executes the entire workflow at once. If every step succeeds it stays on the success rail and returns the final value, if any step throws or rejects it switches to the error rail, short-circuits the remaining steps, and returns the first error as a single `Result`.
+
+### `Trail` Usage
+
+```typescript
+import { Trail } from "data-trails";
+
 declare function fetchUser(userId: string): Promise<{ email: string }>;
-declare function validateUser(user: { email: string }): { email: string; valid: boolean };
+declare function validateUser(user: { email: string }): Promise<{ email: string; valid: boolean }>;
 declare function saveUser(user: { email: string }): Promise<boolean>;
 
 async function onboardUser(userId: string) {
-  const finalResult = await DataTrail.createAsyncTrail(() => fetchUser(userId))
-    .chain(async (user) => validateUser(user))
+  const user = await fetchUser(userId);
+  const finalResult = await Trail.from(user)
+    .chain(async (u) => validateUser(u))
     .chain(async (validated) => saveUser(validated))
     .run();
 
-  if (!finalResult.isError()) {
-    console.log("User onboarding successful!");
-  } else {
-    // If any step failed, the error is captured here
-    console.error("Onboarding failed:", finalResult.unwrapError().message);
-  }
+  if (!finalResult.isError()) console.log("User onboarding successful!");
+  else console.error("Onboarding failed:", finalResult.unwrapError().message);
 }
 ```
+
+Batch sync work in async flow:
+
+```typescript
+const result = await Trail.from("base")
+  .chain((value) => Promise.resolve(value + "-a"))
+  .chain((value) => Promise.resolve(value + "-b"))
+  .chain((value) => Promise.resolve(value + "-c"))
+  .run(); // Promise<Result<string, Error>> with "base-a-b-c"
+```
+
+All `chain` functions must be `async` or return `Promise`. Sync ` (value) => value + 1` will not type-check.
 
 ## API
 
 ### `Result<T, E = Error>`
 
-- `Result.wrap(value: T): Result` — Wraps the given value with a result. If the given value is an instance of `Error`, it returns an error result (`Result<never, Error>`). Otherwise, it returns a success result (`Result<T, never>`).
-- `Result.sync(fn: () => T): Result<T, Error>` — wrap a sync function.
-- `Result.async(fn: () => Promise<T>): Promise<Result<T, Error>>` — wrap an async function.
-- `Result.void(): Result<void, Error>` — create a successful result with no value.
-- Result instance methods:
-  - `isError(): this is Result<never, E>` — returns true if the result is an error. Acts as a type guard.
-  - `unwrap(): T` — returns value or throws if error.
-  - `unwrapError(): E` — returns error or throws if success.
-  - `mapError(fn: (e: E) => E): Result<T, E>` — transforms the error. Throws if called on a success result.
+- `Result.wrap<T>(value: T): T extends Error ? Result<never, T> : Result<T, never>`
+- `Result.from<T>(fn: () => Promise<T>): Promise<Result<T, Error>>`
+- `Result.from<T>(fn: () => T): Result<T, Error>`
+- `Result.void(): Result<void, Error>`
+- `Result` instance: `isError()`, `unwrap()`, `unwrapError()`, `mapError(fn)`
 
-### `DataTrail`
+### `Trail<T>`
 
-- `DataTrail.createSyncTrail(entryPoint: () => T)` — create a synchronous trail.
-- `DataTrail.createAsyncTrail(entryPoint: () => Promise<T>)` — create an asynchronous trail.
-- Trail instance methods:
-  - `.chain(fn)` — append a step; receives previous step's unwrapped value.
-  - `.run()` — execute the trail. Returns a `Result` or `Promise<Result>`.
+- `Trail.from<T>(initialData: T): Trail<T>`
+- `.chain<U>(fn: (value: T) => Promise<U>): Trail<U>` — append async step.
+- `.run(): Promise<Result<T, Error>>` — run all steps in order, short-circuit on first error.
+- `.steps: ReadonlyArray<(value: T) => Promise<unknown>>` — appended steps in order.
 
 ## Contributing
 

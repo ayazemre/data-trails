@@ -1,39 +1,35 @@
-name: CI/CD
+name: CI/CD Pipeline
 on:
   push:
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  id-token: write
+    branches:
+      - main
+      - dev
+  pull_request:
 
 jobs:
-  test:
-    uses: ./.github/workflows/test.yaml
+  integrity:
+    uses: ./.github/workflows/integrity.yaml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
 
-  check-version:
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    outputs:
-      should_publish: ${{ steps.check.outputs.should_publish }}
-    steps:
-      - uses: actions/checkout@v5
-      - id: check
-        run: |
-          PACKAGE_NAME=$(node -p "require('./package.json').name")
-          LOCAL_VERSION=$(node -p "require('./package.json').version")
-          REMOTE_VERSION=$(npm view $PACKAGE_NAME version 2>/dev/null || echo "0.0.0")
-          if [ "$LOCAL_VERSION" != "$REMOTE_VERSION" ]; then
-            echo "Local version $LOCAL_VERSION is different from remote version $REMOTE_VERSION. Publishing..."
-            echo "should_publish=true" >> $GITHUB_OUTPUT
-          else
-            echo "Local version $LOCAL_VERSION matches remote version. Skipping publish."
-            echo "should_publish=false" >> $GITHUB_OUTPUT
-          fi
+  test:
+    needs: integrity
+    uses: ./.github/workflows/test.yaml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
 
   publish:
-    needs: [test, check-version]
-    if: needs.check-version.outputs.should_publish == 'true'
+    if: github.ref == 'refs/heads/main'
+    needs: [integrity, test]
     uses: ./.github/workflows/publish.yaml
+    with:
+      current_version: ${{ needs.integrity.outputs.current_version }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     secrets: inherit
