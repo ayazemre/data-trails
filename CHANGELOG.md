@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.0] - 2026-09-17
+
+- Restrict `Trail` to async `Result`-only chaining with `StepResult` and `Step` aliases and direct `await` single `Result` state.
+- Forbid throwing inside chain functions by convention and keep `run` total for returned `Result` values.
+- Update trail tests to `Result`-only helpers without throws.
+
 ## [0.8.3] - 2026-09-16
 
 - Trim `README.md` implementation details and keep behavior focused usage and API sections.

@@ -1,17 +1,18 @@
 import { equal } from "assert";
 import { describe, test } from "node:test";
 
+import { Result } from "#src/result.ts";
 import { Trail } from "#src/trail.ts";
 
 describe("Trail", () => {
-  async function testAsyncObject<T extends object>(object: T) {
+  async function testAsyncObject<ExtendedObject extends object>(object: ExtendedObject): Promise<Result<ExtendedObject, Error>> {
     await new Promise((resolve) => setTimeout(resolve, 100));
-    return object;
+    return Result.wrap(object);
   }
 
-  async function testAsyncThrows(message: string) {
+  async function testAsyncError(message: string): Promise<Result<never, Error>> {
     await new Promise((resolve) => setTimeout(resolve, 100));
-    throw new Error(message);
+    return Result.wrap(new Error(message));
   }
 
   test("Async Success", async () => {
@@ -34,18 +35,16 @@ describe("Trail", () => {
 
   test("Batch Sync In Async", async () => {
     const trail = Trail.from("base")
-      .chain((value) => Promise.resolve(value + "-a"))
-      .chain((value) => Promise.resolve(value + "-b"))
-      .chain((value) => Promise.resolve(value + "-c"))
-      .chain((value) => Promise.resolve(value + "-d"));
+      .chain(async (value) => Result.wrap(value + "-a"))
+      .chain(async (value) => Result.wrap(value + "-b"))
+      .chain(async (value) => Result.wrap(value + "-c"))
+      .chain(async (value) => Result.wrap(value + "-d"));
     const result = await trail.run();
     equal(result.unwrap(), "base-a-b-c-d");
   });
 
-  test("Throw Sync", async () => {
-    const trail = Trail.from("start").chain(() => {
-      throw new Error("sync throw");
-    });
+  test("Sync Error", async () => {
+    const trail = Trail.from("start").chain(async () => Result.wrap(new Error("sync throw")));
     const result = await trail.run();
     equal(result.isError(), true);
     equal(result.unwrapError().message, "sync throw");
@@ -53,7 +52,7 @@ describe("Trail", () => {
 
   test("Immutability", async () => {
     const base = Trail.from("base");
-    const chained = base.chain((value) => Promise.resolve(value + "-chained"));
+    const chained = base.chain(async (value) => Result.wrap(value + "-chained"));
     const baseResult = await base.run();
     const chainedResult = await chained.run();
     equal(baseResult.unwrap(), "base");
@@ -67,7 +66,7 @@ describe("Trail", () => {
     const trailResult = await trail.run();
     equal(trailResult.unwrap(), "testString");
 
-    const trail2 = trail.chain((previousValue) => testAsyncThrows(previousValue));
+    const trail2 = trail.chain((previousValue) => testAsyncError(previousValue));
     const trailResult2 = await trail2.run();
     equal(trailResult2.isError(), true);
     equal(trailResult2.unwrapError().message, "testString");
@@ -78,7 +77,7 @@ describe("Trail", () => {
     const trailResult = await trail.run();
     equal(trailResult.unwrap(), "testString");
 
-    const trail2 = trail.chain((previousValue) => testAsyncThrows(previousValue));
+    const trail2 = trail.chain((previousValue) => testAsyncError(previousValue));
     const trailResult2 = await trail2.run();
     equal(trailResult2.isError(), true);
     equal(trailResult2.unwrapError().message, "testString");
