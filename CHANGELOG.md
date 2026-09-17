@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.9.1] - 2026-09-17
+
+- Rewrite `README.md` in direct technical tone with explanatory `Result` and `Trail` usage.
+
 ## [0.9.0] - 2026-09-17
 
 - Restrict `Trail` to async `Result`-only chaining with `StepResult` and `Step` aliases and direct `await` single `Result` state.
